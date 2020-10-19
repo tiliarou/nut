@@ -1,100 +1,95 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 import argparse
 import sys
 import os
-import re
-import pathlib
+from pathlib import Path
 import urllib3
-import json
 
 if not getattr(sys, 'frozen', False):
-	os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    os.chdir(Path(__file__).resolve().parent)
 
-#sys.path.insert(0, 'nut')
-
-from nut import Nsps
-from nut import Config
-import requests
-from nut import Print
-import threading
-import signal
-from nut import Status
-import time
-import colorama
-import Server
-import pprint
-import random
-import queue
+from nut import config
+from nut import printer
+from nut import status
+import server
 import nut
 
-			
 if __name__ == '__main__':
-	try:
-		urllib3.disable_warnings()
+    try:
+        urllib3.disable_warnings()
 
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+            '--usb',
+            action="store_true",
+            help='Run usb daemon',
+        )
+        parser.add_argument(
+            '-S',
+            '--server',
+            action="store_true",
+            help='Run server daemon',
+        )
+        parser.add_argument('-m', '--hostname', help='Set server hostname')
+        parser.add_argument('-p', '--port', type=int, help='Set server port')
+        parser.add_argument(
+            '--silent',
+            action="store_true",
+            help='Suppresses stdout',
+        )
 
-		parser = argparse.ArgumentParser()
-		parser.add_argument('--usb', action="store_true", help='Run usb daemon')
-		parser.add_argument('-S', '--server', action="store_true", help='Run server daemon')
-		parser.add_argument('-m', '--hostname', help='Set server hostname')
-		parser.add_argument('-p', '--port', type=int, help='Set server port')
-		parser.add_argument('--silent', action="store_true", help='Suppresses stdout')
-		
-		args = parser.parse_args()
-		
-		if args.silent:
-			Print.silent = True
+        args = parser.parse_args()
 
-		if args.hostname:
-			args.server = True
-			Config.server.hostname = args.hostname
+        if args.silent:
+            printer.silent = True
 
-		if args.port:
-			args.server = True
-			Config.server.port = int(args.port)
+        if args.hostname:
+            args.server = True
+            config.server.hostname = args.hostname
 
-		Status.start()
+        if args.port:
+            args.server = True
+            config.server.port = int(args.port)
 
+        status.start()
 
-		Print.info('                        ,;:;;,')
-		Print.info('                       ;;;;;')
-		Print.info('               .=\',    ;:;;:,')
-		Print.info('              /_\', "=. \';:;:;')
-		Print.info('              @=:__,  \,;:;:\'')
-		Print.info('                _(\.=  ;:;;\'')
-		Print.info('               `"_(  _/="`')
-		Print.info('                `"\'')
+        printer.info('                        ,;:;;,')
+        printer.info('                       ;;;;;')
+        printer.info('               .=\',    ;:;;:,')
+        printer.info('              /_\', "=. \';:;:;')
+        printer.info('              @=:__,  \\,;:;:\'')
+        printer.info('                _(\\.=  ;:;;\'')
+        printer.info('               `"_(  _/="`')
+        printer.info('                `"\'')
 
+        if args.usb:
+            try:
+                from nut import usb
+            except BaseException as e:
+                printer.error('pip3 install pyusb, required for USB coms: ' +
+                              f'{str(e)}')
+            nut.scan()
+            usb.daemon()
 
-		if args.usb:
-			try:
-				from nut import Usb
-			except BaseException as e:
-				Print.error('pip3 install pyusb, required for USB coms: ' + str(e))
-			nut.scan()
-			Usb.daemon()
+        if args.server:
+            nut.initFiles()
+            nut.scan()
+            server.run()
 
-		if args.server:
-			nut.initFiles()
-			nut.scan()
-			Server.run()
-		
-		if len(sys.argv)==1:
-			import server
-			server.run()
+        if len(sys.argv) == 1:
+            import nut_gui
+            nut_gui.run()
 
-		Status.close()
-	
+        status.close()
 
-	except KeyboardInterrupt:
-		Config.isRunning = False
-		Status.close()
-	except BaseException as e:
-		Config.isRunning = False
-		Status.close()
-		raise
+    except KeyboardInterrupt:
+        config.isRunning = False
+        status.close()
 
-	Print.info('fin')
+    except BaseException:
+        config.isRunning = False
+        status.close()
+        raise
 
+    printer.info('fin')
